@@ -15,10 +15,22 @@ const EnvSchema = z.object({
   NODE_ENV: z.string().default('development'),
   PORT: z.coerce.number().int().positive().default(8080),
   TWILIO_TOOL_TOKEN: z.string().min(1).optional(),
-  TWILIO_ACCOUNT_SID: z.string().min(1).optional(),
+  // Shape-validated so a malformed Doppler value fails the BOOT, not the
+  // first send — a container must never advertise a configured-but-unusable
+  // platform account (PR-1 review, Gemini + Codex).
+  TWILIO_ACCOUNT_SID: z
+    .string()
+    .regex(/^AC[0-9a-fA-F]{32}$/, 'must be a Twilio Account SID (AC…)')
+    .optional(),
   TWILIO_AUTH_TOKEN: z.string().min(1).optional(),
-  TWILIO_FROM: z.string().min(1).optional(),
-  TWILIO_MESSAGING_SERVICE_SID: z.string().min(1).optional(),
+  TWILIO_FROM: z
+    .string()
+    .regex(/^\+[1-9]\d{1,14}$/, 'must be an E.164 phone number')
+    .optional(),
+  TWILIO_MESSAGING_SERVICE_SID: z
+    .string()
+    .regex(/^MG[0-9a-fA-F]{32}$/, 'must be a Twilio Messaging Service SID (MG…)')
+    .optional(),
 });
 
 const parsed = EnvSchema.safeParse(process.env);
@@ -46,6 +58,26 @@ if (env.TWILIO_FROM && env.TWILIO_MESSAGING_SERVICE_SID) {
   // eslint-disable-next-line no-console
   console.error('Set exactly one of TWILIO_FROM / TWILIO_MESSAGING_SERVICE_SID, not both. Refusing to start.');
   process.exit(1);
+}
+
+// Boot-tolerance applies to a FULLY-unset platform account (staged deploy);
+// a PARTIAL one is almost certainly a user error — fail fast rather than
+// answer provider_not_configured forever at runtime (PR-1 review, Gemini).
+const anyPlatformVar = Boolean(
+  env.TWILIO_ACCOUNT_SID || env.TWILIO_AUTH_TOKEN || env.TWILIO_FROM || env.TWILIO_MESSAGING_SERVICE_SID,
+);
+if (anyPlatformVar) {
+  const missing: string[] = [];
+  if (!env.TWILIO_ACCOUNT_SID) missing.push('TWILIO_ACCOUNT_SID');
+  if (!env.TWILIO_AUTH_TOKEN) missing.push('TWILIO_AUTH_TOKEN');
+  if (!env.TWILIO_FROM && !env.TWILIO_MESSAGING_SERVICE_SID) {
+    missing.push('either TWILIO_FROM or TWILIO_MESSAGING_SERVICE_SID');
+  }
+  if (missing.length > 0) {
+    // eslint-disable-next-line no-console
+    console.error(`Partial platform Twilio configuration. Missing: ${missing.join(', ')}. Refusing to start.`);
+    process.exit(1);
+  }
 }
 
 export const VERSION = '0.1.0';

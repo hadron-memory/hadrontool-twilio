@@ -10,6 +10,7 @@
  * so callers must never auto-retry a failed send.
  */
 
+import { Buffer } from 'node:buffer';
 import {
   ProviderRateLimitedError,
   ProviderRejectedError,

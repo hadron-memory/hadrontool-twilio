@@ -27,6 +27,9 @@ export function createApp(options: AppOptions = {}): Express {
   app.use(healthRouter);
 
   const auth = requireAuth(options.serviceToken ?? config.serviceToken);
+  // ONE effective deps object: /info must report the same platform-account
+  // state /ops actually sends with (PR-1 review, Copilot).
+  const deps: TwilioDeps = options.twilioDeps ?? { fetchImpl: fetch, platformAccount: config.platformAccount };
 
   app.get('/info', auth, (_req, res) => {
     res.json({
@@ -34,15 +37,11 @@ export function createApp(options: AppOptions = {}): Express {
       version: VERSION,
       operations: Object.keys(OPERATIONS),
       stateless: true,
-      platformAccountConfigured: Boolean(config.platformAccount),
+      platformAccountConfigured: Boolean(deps.platformAccount),
     });
   });
 
-  app.use(
-    '/ops',
-    auth,
-    opsRouter(options.twilioDeps ?? { fetchImpl: fetch, platformAccount: config.platformAccount }),
-  );
+  app.use('/ops', auth, opsRouter(deps));
 
   app.use((_req, res) => {
     res.status(404).json({ error: 'not_found' });

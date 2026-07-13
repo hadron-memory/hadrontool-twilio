@@ -66,6 +66,14 @@ describe('auth gate', () => {
     expect(res.body.name).toBe('hadrontool-twilio');
     expect(res.body.operations).toEqual(['send-sms']);
     expect(res.body.stateless).toBe(true);
+    // Reports the EFFECTIVE deps' platform account, not the env one.
+    expect(res.body.platformAccountConfigured).toBe(true);
+  });
+
+  it('/info reports platformAccountConfigured=false when the effective deps carry none', async () => {
+    const app = appWith(fakeDeps(undefined, {}));
+    const res = await request(app).get('/info').set('authorization', `Bearer ${TOKEN}`).expect(200);
+    expect(res.body.platformAccountConfigured).toBe(false);
   });
 });
 
@@ -91,7 +99,7 @@ describe('send-sms validation', () => {
     [{ to: '+15551234567', body: 'x'.repeat(1601) }, 'body over 1600 chars'],
     [{ to: '+15551234567', body: 'hi', extra: true }, 'unknown field (.strict)'],
     [{ to: '+15551234567', body: 'hi', accountSid: 'not-a-sid', authToken: 't', from: '+15005550001' }, 'bad accountSid'],
-  ])('rejects %j (%s) as validation_error', async (payload) => {
+  ])('rejects %j (%s) as validation_error', async (payload, _label) => {
     const deps = fakeDeps();
     const res = await send(appWith(deps), payload).expect(400);
     expect(res.body.error).toBe('validation_error');
@@ -103,7 +111,7 @@ describe('send-sms validation', () => {
     [{ authToken: INLINE.authToken, from: INLINE.from }, 'authToken without accountSid'],
     [{ accountSid: INLINE.accountSid, authToken: INLINE.authToken }, 'inline creds without sender'],
     [{ ...INLINE, messagingServiceSid: 'MG1' }, 'both from and messagingServiceSid'],
-  ])('rejects partial inline credentials %j (%s)', async (inline) => {
+  ])('rejects partial inline credentials %j (%s)', async (inline, _label) => {
     const deps = fakeDeps();
     const res = await send(appWith(deps), { to: '+15551234567', body: 'hi', ...inline }).expect(400);
     expect(res.body.error).toBe('validation_error');
