@@ -66,8 +66,8 @@ No database, no Prisma, no migrations — nothing to set up.
 
 This tool has no memory of its own — work against the shared ones:
 
-- `hrn:memory:hadronmemory.com::dev` — findings, conventions, ops, `preflight`
-- `hrn:memory:hadronmemory.com::specs` — product specs (`cor:int:030` is the
+- `hrn:mem:hadronmemory.com:dev` — findings, conventions, ops, `preflight`
+- `hrn:mem:hadronmemory.com:specs` — product specs (`cor:int:030` is the
   capability-tool module; `cor:int:030:01` the Hadron-blind boundary)
 
 Query Hadron before reading code/design (`hadron_find_nodes` → `hadron_get_node`),
